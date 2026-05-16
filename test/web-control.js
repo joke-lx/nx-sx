@@ -1,4 +1,5 @@
 import { strict as assert } from 'assert';
+import { createHash } from 'crypto';
 import { mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -11,6 +12,10 @@ import {
   normalizeWorkingDirectory,
 } from '../src/web-control/index.js';
 import { parseCliArgs } from '../src/cli.js';
+
+function expectedTag(cwd) {
+  return createHash('sha1').update(String(cwd)).digest('hex').slice(0, 8);
+}
 
 let passed = 0;
 let failed = 0;
@@ -68,24 +73,70 @@ await test('normalizeWorkingDirectory expands drive root shorthand', () => {
 });
 
 await test('parseCliArgs parses command and path', () => {
-  assert.deepEqual(parseCliArgs(['happy', 'C:']), {
-    command: 'happy',
-    cwd: 'C:\\',
-    name: 'happy',
-  });
+  delete process.env.NXSX_INSTANCE_NAME;
+  const result = parseCliArgs(['happy', 'C:']);
+  assert.equal(result.command, 'happy');
+  assert.equal(result.cwd, 'C:\\');
+  assert.equal(result.title, 'happy');
+  assert.match(result.name, /^happy-[0-9a-f]{8}-[0-9a-f]{8}$/);
+  assert.ok(result.name.startsWith(`happy-${expectedTag('C:\\')}-`));
 });
 
 await test('parseCliArgs defaults path to current working directory', () => {
+  delete process.env.NXSX_INSTANCE_NAME;
   const originalCwd = process.cwd;
   process.cwd = () => 'D:\\chat\\bro_chat';
   try {
-    assert.deepEqual(parseCliArgs(['happy']), {
-      command: 'happy',
-      cwd: 'D:\\chat\\bro_chat',
-      name: 'happy',
-    });
+    const result = parseCliArgs(['happy']);
+    assert.equal(result.command, 'happy');
+    assert.equal(result.cwd, 'D:\\chat\\bro_chat');
+    assert.equal(result.title, 'happy');
+    assert.match(result.name, /^happy-[0-9a-f]{8}-[0-9a-f]{8}$/);
+    assert.ok(result.name.startsWith(`happy-${expectedTag('D:\\chat\\bro_chat')}-`));
   } finally {
     process.cwd = originalCwd;
+  }
+});
+
+await test('parseCliArgs gives a fresh name on every call so same dir can multi-open', () => {
+  delete process.env.NXSX_INSTANCE_NAME;
+  const a = parseCliArgs(['happy', 'D:\\proj\\a']);
+  const b = parseCliArgs(['happy', 'D:\\proj\\a']);
+  assert.notEqual(a.name, b.name);
+  // cwd-hash prefix stable for forensics; nonce differs
+  const prefix = `happy-${expectedTag('D:\\proj\\a')}-`;
+  assert.ok(a.name.startsWith(prefix));
+  assert.ok(b.name.startsWith(prefix));
+  assert.equal(a.title, 'happy');
+  assert.equal(b.title, 'happy');
+});
+
+await test('parseCliArgs disambiguates by cwd so different dirs differ at the hash prefix', () => {
+  delete process.env.NXSX_INSTANCE_NAME;
+  const a = parseCliArgs(['happy', 'D:\\proj\\a']);
+  const b = parseCliArgs(['happy', 'D:\\proj\\b']);
+  const hashA = a.name.slice('happy-'.length, 'happy-'.length + 8);
+  const hashB = b.name.slice('happy-'.length, 'happy-'.length + 8);
+  assert.notEqual(hashA, hashB);
+  assert.equal(hashA, expectedTag('D:\\proj\\a'));
+  assert.equal(hashB, expectedTag('D:\\proj\\b'));
+});
+
+await test('parseCliArgs honors NXSX_INSTANCE_NAME env override', () => {
+  const original = process.env.NXSX_INSTANCE_NAME;
+  process.env.NXSX_INSTANCE_NAME = 'happy-second-instance';
+  try {
+    const result = parseCliArgs(['happy', 'C:']);
+    assert.equal(result.name, 'happy-second-instance');
+    assert.equal(result.title, 'happy');
+    assert.equal(result.cwd, 'C:\\');
+    assert.equal(result.command, 'happy');
+  } finally {
+    if (original === undefined) {
+      delete process.env.NXSX_INSTANCE_NAME;
+    } else {
+      process.env.NXSX_INSTANCE_NAME = original;
+    }
   }
 });
 

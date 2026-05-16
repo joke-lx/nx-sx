@@ -1,8 +1,15 @@
+import { createHash, randomBytes } from 'crypto';
 import {
   GitBashWindowController,
   extractCommandName,
   normalizeWorkingDirectory,
 } from './web-control/git-bash-window-controller.js';
+
+function instanceTag(cwd) {
+  const cwdHash = createHash('sha1').update(String(cwd)).digest('hex').slice(0, 8);
+  const nonce = randomBytes(4).toString('hex');
+  return `${cwdHash}-${nonce}`;
+}
 
 export function parseCliArgs(argv = process.argv.slice(2)) {
   const args = [...argv];
@@ -13,10 +20,16 @@ export function parseCliArgs(argv = process.argv.slice(2)) {
     throw new Error('Usage: nx-sx <command> [path]');
   }
 
+  const normalizedCwd = normalizeWorkingDirectory(cwd);
+  const base = extractCommandName(command);
+  const override = (process.env.NXSX_INSTANCE_NAME || '').trim();
+  const name = override || `${base}-${instanceTag(normalizedCwd)}`;
+
   return {
     command,
-    cwd: normalizeWorkingDirectory(cwd),
-    name: extractCommandName(command),
+    cwd: normalizedCwd,
+    name,
+    title: base,
   };
 }
 
@@ -32,12 +45,12 @@ function registerSignalHandlers(onSignal) {
 }
 
 export async function runStartCli(argv = process.argv.slice(2)) {
-  const { command, cwd, name } = parseCliArgs(argv);
+  const { command, cwd, name, title } = parseCliArgs(argv);
   const controller = new GitBashWindowController({ name, cwd });
 
   const result = await controller.start({
     name,
-    title: name,
+    title,
     command,
     cwd,
     allowUnsandboxedWindow: true,
