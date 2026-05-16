@@ -1,5 +1,5 @@
 {
-  "name": "@flowot/nx-sx",
+  "name": "@jokelx/nx-sx",
   "version": "0.1.6",
   "description": "CLI package for launching and managing sandbox-aware Git Bash windows on Windows",
   "type": "module",
