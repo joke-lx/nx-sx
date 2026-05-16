@@ -1,6 +1,6 @@
 {
-  "name": "@jokelx/nx-sx",
-  "version": "0.1.3",
+  "name": "@flowot/nx-sx",
+  "version": "0.1.6",
   "description": "CLI package for launching and managing sandbox-aware Git Bash windows on Windows",
   "type": "module",
   "main": "src/index.js",

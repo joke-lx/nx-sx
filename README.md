@@ -1,11 +1,11 @@
-# @jokelx/nx-sx
+# @flowot/nx-sx
 
 CLI package for launching a visible Git Bash window on Windows and closing it when the parent CLI receives an exit signal.
 
 ## Usage
 
 ```bash
-npx @jokelx/nx-sx happy C:
+npx @flowot/nx-sx happy C:
 ```
 
 Arguments:
@@ -16,9 +16,9 @@ Arguments:
 Examples:
 
 ```bash
-npx @jokelx/nx-sx happy C:
-npx @jokelx/nx-sx happy
-npx @jokelx/nx-sx "npm run dev" D:\chat\bro_chat
+npx @flowot/nx-sx happy C:
+npx @flowot/nx-sx happy
+npx @flowot/nx-sx "npm run dev" D:\chat\bro_chat
 npm run nx-sx -- happy
 npm run nx-sx -- "npm run dev" D:\chat\bro_chat
 ```
